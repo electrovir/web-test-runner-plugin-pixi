@@ -15,7 +15,7 @@ export class PixiPlugin implements Plugin {
 
     protected pixiPath: string | undefined;
 
-    protected getPixiPath(rootDir: string) {
+    protected getPixiPath(rawRootDir: string) {
         const pixiPackageDirPath = findAncestor(
             fileURLToPath(import.meta.resolve('pixi.js')),
             (path) => {
@@ -28,6 +28,8 @@ export class PixiPlugin implements Plugin {
             throw new Error(`Failed to find pixi.js package path.`);
         }
 
+        const rootDir = toPosixPath(rawRootDir).replace(/^\/c/, '');
+
         const fullPixiMinPath = join(
             toPosixPath(pixiPackageDirPath).replace(/^\/c/, ''),
             'dist',
@@ -39,6 +41,7 @@ export class PixiPlugin implements Plugin {
         const notUpDirParts = splitPath.filter((part) => part !== '..');
         const upDirCount = splitPath.length - notUpDirParts.length;
         const rejoinedPath = notUpDirParts.join('/');
+
         if (upDirCount) {
             /** Pixi path is above root path. */
             return `/__wds-outside-root__/${upDirCount}/${rejoinedPath}`;
