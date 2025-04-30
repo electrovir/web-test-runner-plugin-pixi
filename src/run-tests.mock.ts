@@ -4,20 +4,23 @@ import {type Plugin} from '@web/dev-server-core';
 import {esbuildPlugin} from '@web/dev-server-esbuild';
 import {runTests as runTestRunner} from '@web/test-runner-core/test-helpers';
 import {playwrightLauncher} from '@web/test-runner-playwright';
-import {join, relative} from 'node:path';
+import {join} from 'node:path';
 import {repoDirPath, testFilesDirPath} from './repo-paths.mock.js';
 
 /** @returns Whether the tests passed or not */
-export async function runTests(
+export async function runTests(options: {
     /** An array of file paths relative to the `test-files` directory. */
-    files: ReadonlyArray<string>,
-    extraPlugins: ReadonlyArray<Plugin> = [],
-): Promise<boolean> {
+    files: ReadonlyArray<string>;
+    plugins?: ReadonlyArray<Plugin>;
+    rootDir?: string;
+}): Promise<boolean> {
+    const rootDir: string = options.rootDir || repoDirPath;
+
     const result = await wrapInTry(
         () =>
             runTestRunner({
-                rootDir: repoDirPath,
-                files: files.map((file) => relative(repoDirPath, join(testFilesDirPath, file))),
+                rootDir,
+                files: options.files.map((file) => join(testFilesDirPath, file)),
                 coverage: false,
                 browsers: [
                     playwrightLauncher({
@@ -25,7 +28,7 @@ export async function runTests(
                     }),
                 ],
                 plugins: [
-                    ...extraPlugins,
+                    ...(options.plugins || []),
                     esbuildPlugin({ts: true}),
                     nodeResolvePlugin(repoDirPath),
                 ],

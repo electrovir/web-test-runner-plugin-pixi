@@ -13,62 +13,58 @@ export function pixiPlugin() {
 export class PixiPlugin implements Plugin {
     public readonly name = 'pixi';
 
-    protected rootDir: string | undefined;
+    protected pixiPath: string | undefined;
 
-    protected fullPixiMinPath: string | undefined;
+    protected getPixiPath(rootDir: string) {
+        const pixiPackageDirPath = findAncestor(
+            fileURLToPath(import.meta.resolve('pixi.js')),
+            (path) => {
+                return existsSync(fsJoin(path, 'package.json'));
+            },
+        );
 
-    protected getFixedPixiPath(): string {
-        if (this.fullPixiMinPath) {
-            return this.fullPixiMinPath;
+        /* node:coverage ignore next 3: impossible to mock this in the current repo */
+        if (!pixiPackageDirPath) {
+            throw new Error(`Failed to find pixi.js package path.`);
+        }
+
+        const fullPixiMinPath = join(
+            toPosixPath(pixiPackageDirPath).replace(/^\/c/, ''),
+            'dist',
+            'pixi.min.mjs',
+        );
+
+        const relativeToRoot = relative(rootDir, fullPixiMinPath);
+        const splitPath = relativeToRoot.split('/');
+        const notUpDirParts = splitPath.filter((part) => part !== '..');
+        const upDirCount = splitPath.length - notUpDirParts.length;
+        const rejoinedPath = notUpDirParts.join('/');
+        if (upDirCount) {
+            /** Pixi path is above root path. */
+            return `/__wds-outside-root__/${upDirCount}/${rejoinedPath}`;
         } else {
-            const pixiPackageDirPath = findAncestor(
-                fileURLToPath(import.meta.resolve('pixi.js')),
-                (path) => {
-                    return existsSync(fsJoin(path, 'package.json'));
-                },
-            );
-
-            /* node:coverage ignore next 3: impossible to mock this in the current repo */
-            if (!pixiPackageDirPath) {
-                throw new Error(`Failed to find pixi.js package path.`);
-            }
-
-            const fullPixiMinPath = join(
-                toPosixPath(pixiPackageDirPath).replace(/^\/c/, ''),
-                'dist',
-                'pixi.min.mjs',
-            );
-
-            this.fullPixiMinPath = fullPixiMinPath;
-            return fullPixiMinPath;
+            return '/' + relativeToRoot;
         }
     }
 
     public serverStart({config}: Parameters<NonNullable<Plugin['serverStart']>>[0]) {
-        this.rootDir = config.rootDir;
+        this.pixiPath = this.getPixiPath(config.rootDir);
     }
 
     public resolveImport({
         source,
-        context,
     }: SelectFrom<
         Parameters<NonNullable<Plugin['resolveImport']>>[0],
         {
             source: true;
-            context: {
-                path: true;
-            };
         }
     >) {
         if (source === 'pixi.js') {
-            if (!this.rootDir) {
-                throw new Error('cannot resolve import: rootDir not set');
+            if (!this.pixiPath) {
+                throw new Error('Cannot resolve import: pixiPath not set');
             }
 
-            const fullFilePath = join(this.rootDir, context.path);
-            const relativePixiPath = relative(fullFilePath, this.getFixedPixiPath());
-
-            return relativePixiPath;
+            return this.pixiPath;
         }
         return undefined;
     }
