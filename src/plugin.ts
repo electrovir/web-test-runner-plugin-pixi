@@ -1,8 +1,9 @@
 import {type SelectFrom} from '@augment-vir/common';
-import {findAncestor} from '@augment-vir/node';
+import {findAncestor, toPosixPath} from '@augment-vir/node';
 import {type Plugin} from '@web/dev-server-core';
 import {existsSync} from 'node:fs';
-import {join, relative} from 'node:path';
+import {join as fsJoin} from 'node:path';
+import {join, relative} from 'node:path/posix';
 import {fileURLToPath} from 'node:url';
 
 export function pixiPlugin() {
@@ -23,7 +24,7 @@ export class PixiPlugin implements Plugin {
             const pixiPackageDirPath = findAncestor(
                 fileURLToPath(import.meta.resolve('pixi.js')),
                 (path) => {
-                    return existsSync(join(path, 'package.json'));
+                    return existsSync(fsJoin(path, 'package.json'));
                 },
             );
 
@@ -32,7 +33,11 @@ export class PixiPlugin implements Plugin {
                 throw new Error(`Failed to find pixi.js package path.`);
             }
 
-            const fullPixiMinPath = join(pixiPackageDirPath, 'dist', 'pixi.min.mjs');
+            const fullPixiMinPath = join(
+                toPosixPath(pixiPackageDirPath).replace(/^\/c/, ''),
+                'dist',
+                'pixi.min.mjs',
+            );
 
             this.fullPixiMinPath = fullPixiMinPath;
             return fullPixiMinPath;
