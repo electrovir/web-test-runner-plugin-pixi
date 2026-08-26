@@ -1,3 +1,5 @@
+Deprecated. Use https://github.com/electrovir/antha/tree/dev/packages/web-test-runner-plugin-pixi instead.
+
 # web-test-runner-plugin-pixi
 
 A plugin for [web-test-runner](https://modern-web.dev/docs/test-runner/overview/) that transforms pixi.js imports to be compatible with browsers.
